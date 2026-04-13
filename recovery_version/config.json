@@ -1,0 +1,6 @@
+{
+  "recovery_mode": {
+    "enabled": true,
+    "keep_alert_minutes": 7
+  }
+}
