@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
+import time
 
 from PySide6.QtCore import QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QPalette, QColor
@@ -49,10 +50,10 @@ class _PingWorker(QThread):
         self._logger = logger
 
     def run(self) -> None:
-        futures = [
-            (t, self._pool.submit(ping_once_windows, t.ip, 1000))
-            for t in self._targets
-        ]
+        futures = []
+        for t in self._targets:
+            futures.append((t, self._pool.submit(ping_once_windows, t.ip, 1000)))
+            time.sleep(0.05)  # stagger ICMP packets to avoid burst-load on switches
         results: list[tuple[LineTarget, bool]] = []
         for t, fut in futures:
             try:
