@@ -50,11 +50,26 @@ class _PingWorker(QThread):
         self._pool = pool
         self._logger = logger
 
+    # Total wall-clock budget for spreading out ICMP submissions, regardless
+    # of how many targets there are. A fixed 50ms-per-target delay (the
+    # original fix) takes 10s to just submit 200 targets - longer than the
+    # whole ping cycle interval. Spreading over a fixed budget instead keeps
+    # the burst-avoidance benefit without that blowing up at scale.
+    _SUBMIT_SPREAD_BUDGET_SEC = 2.0
+
     def run(self) -> None:
+        start = time.monotonic()
+
+        n = len(self._targets)
+        delay = min(0.05, self._SUBMIT_SPREAD_BUDGET_SEC / n) if n else 0.0
+
         futures = []
         for t in self._targets:
             futures.append((t, self._pool.submit(ping_once_windows, t.ip, 1000)))
-            time.sleep(0.05)  # stagger ICMP packets to avoid burst-load on switches
+            if delay:
+                time.sleep(delay)
+        submit_elapsed = time.monotonic() - start
+
         results: list[tuple[LineTarget, bool]] = []
         for t, fut in futures:
             try:
@@ -66,6 +81,12 @@ class _PingWorker(QThread):
                     t.site_name, t.role, t.ip,
                 )
                 results.append((t, False))
+
+        total_elapsed = time.monotonic() - start
+        self._logger.info(
+            "CYCLE | targets=%d submit_sec=%.2f total_sec=%.2f",
+            n, submit_elapsed, total_elapsed,
+        )
         self.done.emit(results)
 
 
