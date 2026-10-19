@@ -54,7 +54,7 @@ class _PingWorker(QThread):
     # original fix) takes 10s to just submit 200 targets - longer than the
     # whole ping cycle interval. Spreading over a fixed budget instead keeps
     # the burst-avoidance benefit without that blowing up at scale.
-    _SUBMIT_SPREAD_BUDGET_SEC = 2.0
+    _SUBMIT_SPREAD_BUDGET_SEC = 5.0
 
     def run(self) -> None:
         start = time.monotonic()
